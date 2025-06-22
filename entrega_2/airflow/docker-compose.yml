@@ -1,0 +1,21 @@
+services:
+  airflow:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: airflow
+    restart: always
+    environment:
+      - AIRFLOW__CORE__EXECUTOR=SequentialExecutor
+      - AIRFLOW__CORE__SQL_ALCHEMY_CONN=sqlite:////opt/airflow/airflow.db
+      - AIRFLOW_HOME=/opt/airflow
+      - AIRFLOW__CORE__DAGS_FOLDER=/opt/airflow/dags
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./scripts:/opt/airflow/scripts
+      - ./logs:/opt/airflow/logs
+      - ./plugins:/opt/airflow/plugins
+      - ./data:/opt/airflow/data
+      - ./models:/opt/airflow/models
+    ports:
+      - "8080:8080"
