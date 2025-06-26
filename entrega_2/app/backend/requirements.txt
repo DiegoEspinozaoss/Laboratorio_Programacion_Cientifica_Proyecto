@@ -1,0 +1,12 @@
+joblib
+uvicorn
+click
+typing_extensions
+h11
+fastapi
+starlette
+pydantic
+pydantic_core
+pandas
+scikit-learn
+pyarrow

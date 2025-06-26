@@ -1,0 +1,21 @@
+version: "3.9"
+
+services:
+  backend:
+    build:
+      context: ./backend
+    container_name: sodai_backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ../airflow/models:/app/models  # ✅ esto está bien si el archivo existe
+      - ../airflow/data:/app/data
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: sodai_frontend
+    ports:
+      - "7860:7860"
+    depends_on:
+      - backend

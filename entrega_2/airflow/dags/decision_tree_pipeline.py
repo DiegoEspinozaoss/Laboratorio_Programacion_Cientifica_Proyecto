@@ -1,8 +1,10 @@
 from airflow import DAG
-from airflow.operators.python import PythonOperator
+from airflow.operators.python import PythonOperator, BranchPythonOperator
+from airflow.operators.empty import EmptyOperator
 from datetime import datetime, timedelta
 import subprocess
 from pathlib import Path
+from scripts.detect_drift import detect_drift  # ✅ Importa la función real
 
 default_args = {
     'owner': 'airflow',
@@ -22,6 +24,8 @@ dag = DAG(
     catchup=False,
 )
 
+# -------------------- TAREAS --------------------
+
 def check_data():
     data_dir = Path("/opt/airflow/data")
     required_files = ["transacciones.parquet", "clientes.parquet", "productos.parquet"]
@@ -39,13 +43,24 @@ def run_training_script():
     except subprocess.CalledProcessError as e:
         raise RuntimeError("❌ Error al ejecutar el script de entrenamiento") from e
 
-def detect_drift():
-    print("🔍 Drift detection pendiente de implementación...")
-    # Aquí se puede agregar validación con Evidently, estadísticas delta, etc.
+def decide_retraining(**kwargs):
+    if detect_drift():
+        return 'train_model'
+    else:
+        return 'skip_training'
+
+# -------------------- OPERADORES --------------------
 
 check_data_task = PythonOperator(
     task_id='check_data',
     python_callable=check_data,
+    dag=dag,
+)
+
+branch_task = BranchPythonOperator(
+    task_id='branch_drift_check',
+    python_callable=decide_retraining,
+    provide_context=True,
     dag=dag,
 )
 
@@ -57,9 +72,15 @@ train_model_task = PythonOperator(
 
 drift_detection_task = PythonOperator(
     task_id='drift_detection',
-    python_callable=detect_drift,
+    python_callable=lambda: print("📊 Registro de que drift fue evaluado"),
     dag=dag,
 )
 
-# Flujo de tareas
-check_data_task >> train_model_task >> drift_detection_task
+skip_training = EmptyOperator(task_id='skip_training', dag=dag)
+end = EmptyOperator(task_id='end', dag=dag)
+
+# -------------------- FLUJO --------------------
+
+check_data_task >> branch_task
+branch_task >> train_model_task >> drift_detection_task >> end
+branch_task >> skip_training >> end

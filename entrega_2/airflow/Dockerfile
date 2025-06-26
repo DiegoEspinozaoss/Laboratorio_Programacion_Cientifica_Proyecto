@@ -3,6 +3,7 @@ FROM python:3.10-slim
 # Variables de entorno
 ENV AIRFLOW_HOME=/opt/airflow
 ENV AIRFLOW__CORE__SQL_ALCHEMY_CONN=sqlite:////opt/airflow/airflow.db
+ENV PYTHONPATH=${AIRFLOW_HOME}
 
 # Setear directorio de trabajo
 WORKDIR $AIRFLOW_HOME

@@ -1,3 +1,7 @@
+import sys, os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
+from utils import DateFeatureExtractor  # ✅ usar versión oficial
+
 import pandas as pd
 import joblib
 import mlflow
@@ -7,25 +11,19 @@ from sklearn.pipeline import Pipeline
 from sklearn.metrics import classification_report, f1_score
 from sklearn.compose import ColumnTransformer
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
-from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.impute import SimpleImputer
 from datetime import datetime, timedelta
 
-RANDOM_STATE = 42
-
 # -------------------- PREPROCESAMIENTO --------------------
 
-# Cargar datos
 clientes = pd.read_parquet("data/clientes.parquet")
 productos = pd.read_parquet("data/productos.parquet")
 transacciones = pd.read_parquet("data/transacciones.parquet")
 
-# Limpiar fechas y eliminar items negativos o cero
 transacciones['purchase_date'] = pd.to_datetime(transacciones['purchase_date'])
 transacciones = transacciones[transacciones['items'] > 0]
 transacciones['semana'] = transacciones['purchase_date'].dt.to_period("W").dt.start_time
 
-# Obtener universo de combinaciones cliente-producto-semana
 clientes_unicos = transacciones['customer_id'].unique()
 productos_unicos = transacciones['product_id'].unique()
 semanas_unicas = transacciones['semana'].unique()
@@ -37,24 +35,19 @@ full_grid = (
     ).to_frame(index=False)
 )
 
-# Crear variable target
 compras_realizadas = (
     transacciones.groupby(['customer_id', 'product_id', 'semana'])['items']
     .sum().reset_index()
 )
 compras_realizadas['target'] = 1
 
-# Merge para agregar los target = 0 donde no hubo compras
 df = full_grid.merge(compras_realizadas[['customer_id', 'product_id', 'semana', 'target']],
                      on=['customer_id', 'product_id', 'semana'],
                      how='left')
 df['target'] = df['target'].fillna(0).astype(int)
 
-# Merge con atributos de clientes y productos
 df = df.merge(clientes, on='customer_id', how='left')
 df = df.merge(productos, on='product_id', how='left')
-
-# Añadir columna 'purchase_date' como inicio de semana
 df['purchase_date'] = pd.to_datetime(df['semana'])
 
 # -------------------- HOLDOUT SPLIT --------------------
@@ -71,10 +64,7 @@ df_valid = df[(df['purchase_date'] > cutoff_train) & (df['purchase_date'] <= cut
 df_test  = df[df['purchase_date'] > cutoff_valid]
 
 X_train = df_train.drop(columns=['target'])
-X_train = X_train.sample(n=min(3_000_000, len(X_train)), random_state=1310)
-
-# print(len(X_train))
-
+X_train = X_train.sample(n=min(3_000_000, len(X_train)))
 y_train = df_train['target']
 y_train = y_train.loc[X_train.index]
 
@@ -85,31 +75,12 @@ y_test  = df_test['target']
 
 # -------------------- FEATURE ENGINEERING --------------------
 
-class DateFeatureExtractor(BaseEstimator, TransformerMixin):
-    def __init__(self, date_column="purchase_date"):
-        self.date_column = date_column
-
-    def fit(self, X, y=None):
-        return self
-
-    def transform(self, X):
-        X = X.copy()
-        X[self.date_column] = pd.to_datetime(X[self.date_column])
-        X["dayofweek"] = X[self.date_column].dt.dayofweek
-        X["month"] = X[self.date_column].dt.month
-        X["week"] = X[self.date_column].dt.isocalendar().week.astype(int)
-        return X.drop(columns=[self.date_column])
-
-# Columnas
 categorical_cols = df.select_dtypes(include=['object', 'category']).columns.tolist()
 numerical_cols = df.select_dtypes(include=['number']).columns.tolist()
-numerical_cols += ["dayofweek", "month", "week"]
-
 excluded_cols = ['target', 'items', 'purchase_date']
 categorical_cols = [col for col in categorical_cols if col not in excluded_cols]
 numerical_cols = [col for col in numerical_cols if col not in excluded_cols]
 
-# Pipelines
 numeric_transformer = Pipeline(steps=[
     ("imputer", SimpleImputer(strategy="median")),
     ("scaler", StandardScaler())
@@ -125,7 +96,7 @@ preprocessor = ColumnTransformer(transformers=[
     ("cat", categorical_transformer, categorical_cols)
 ])
 
-# -------------------- BASELINE: ENTRENAMIENTO Y EVALUACIÓN --------------------
+# -------------------- ENTRENAMIENTO --------------------
 
 DT = DecisionTreeClassifier(
     criterion='gini',
@@ -134,7 +105,6 @@ DT = DecisionTreeClassifier(
     min_samples_split=2,
     min_samples_leaf=1,
     class_weight='balanced',
-    random_state=RANDOM_STATE
 )
 
 pipeline = Pipeline([
