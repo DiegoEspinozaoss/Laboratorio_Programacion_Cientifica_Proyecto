@@ -49,19 +49,7 @@ def predict_one(customer_id, product_id):
         else:
             lista_compras = f"⚠️ Nadie comprará el producto {product_id} esta semana."
 
-        # 3. Recomendaciones
-        r3 = requests.get(f"{BACKEND}/recommend_products", params={"customer_id": customer_id, "exclude_product": product_id})
-        r3.raise_for_status()
-        recomendaciones = r3.json().get("recommended", [])
-        if recomendaciones:
-            lista_recom = "\n".join(
-                f"🥤 {p['product_id']} — {p['product_name']}" for p in recomendaciones
-            )
-            recomendados = f"🧠 Recomendaciones para cliente {customer_id}:\n{lista_recom}"
-        else:
-            recomendados = f"⚠️ No hay productos recomendados para {customer_id} esta semana."
-
-        extra = f"{lista_compras}\n\n{recomendados}"
+        extra = lista_compras
         return resultado, extra
 
     except requests.exceptions.HTTPError as e:

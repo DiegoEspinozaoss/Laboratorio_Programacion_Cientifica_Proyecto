@@ -1,0 +1,23 @@
+services:
+  backend:
+    build:
+      context: ./backend
+    container_name: sodai_backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ../../airflow/models:/app/models
+      - ../../airflow/data:/app/data
+    working_dir: /app
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: sodai_frontend
+    ports:
+      - "7860:7860"
+    depends_on:
+      - backend
+    working_dir: /app
+    command: python app.py
