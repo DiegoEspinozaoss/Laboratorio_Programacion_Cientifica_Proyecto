@@ -18,7 +18,6 @@ def load_options():
         semana_str
     )
 
-
 def predict_one(customer_id, product_id):
     payload = {"customer_id": str(customer_id), "product_id": str(product_id)}
     try:
@@ -28,41 +27,53 @@ def predict_one(customer_id, product_id):
         data = r1.json()
 
         pred = data["prediction"]
-        semana = f"🗓️ Semana del {data['semana_inicio']} al {data['semana_fin']}"
         pred_msg = "✅ Comprará" if pred == 1 else "❌ No comprará"
-        main_output = f"{pred_msg} el producto {product_id}\n{semana}"
+        resultado = f"{pred_msg} el producto {product_id}"
 
-        # 2. Todos los compradores del producto
+        # 2. Otros compradores del producto
         r2 = requests.get(f"{BACKEND}/buyers_for_product/{product_id}")
         r2.raise_for_status()
         buyers = r2.json().get("buyers", [])
-
         other_buyers = [cid for cid in buyers if str(cid) != str(customer_id)]
 
         if buyers:
             if pred == 1:
                 if other_buyers:
-                    compradores = "\n".join(f"• {cid}" for cid in other_buyers)
-                    lista = f"🧾 Otros clientes que también comprarán el producto {product_id}:\n{compradores}"
+                    compradores = "\n".join(f"👤 {cid}" for cid in other_buyers)
+                    lista_compras = f"🧾 Otros clientes que también comprarán el producto {product_id}:\n{compradores}"
                 else:
-                    lista = f"🧾 Ningún otro cliente más lo comprará esta semana."
+                    lista_compras = "🧾 Ningún otro cliente más lo comprará esta semana."
             else:
-                compradores = "\n".join(f"• {cid}" for cid in buyers)
-                lista = f"🧾 Clientes que sí comprarán el producto {product_id}:\n{compradores}"
+                compradores = "\n".join(f"👤 {cid}" for cid in buyers)
+                lista_compras = f"🧾 Clientes que sí comprarán el producto {product_id}:\n{compradores}"
         else:
-            lista = f"⚠️ Nadie comprará el producto {product_id} esta semana."
+            lista_compras = f"⚠️ Nadie comprará el producto {product_id} esta semana."
 
-        return main_output, lista
+        # 3. Recomendaciones
+        r3 = requests.get(f"{BACKEND}/recommend_products", params={"customer_id": customer_id, "exclude_product": product_id})
+        r3.raise_for_status()
+        recomendaciones = r3.json().get("recommended", [])
+        if recomendaciones:
+            lista_recom = "\n".join(
+                f"🥤 {p['product_id']} — {p['product_name']}" for p in recomendaciones
+            )
+            recomendados = f"🧠 Recomendaciones para cliente {customer_id}:\n{lista_recom}"
+        else:
+            recomendados = f"⚠️ No hay productos recomendados para {customer_id} esta semana."
+
+        extra = f"{lista_compras}\n\n{recomendados}"
+        return resultado, extra
+
     except requests.exceptions.HTTPError as e:
-        return f"❌ Error {r1.status_code if 'r1' in locals() else '?'}: {e.response.text}", ""
+        msg = f"❌ Error {r1.status_code if 'r1' in locals() else '?'}: {e.response.text}"
+        return msg, ""
     except Exception as e:
         return f"❌ Error de conexión: {str(e)}", ""
 
 
 with gr.Blocks(title="SodAI Drinks 🥤") as demo:
-    with gr.Row():
-        title_left  = gr.Markdown("### SodAI Drinks 🥤")
-        title_right = gr.Markdown("")  # semana sin título
+    gr.Markdown("### SodAI Drinks 🥤")
+    semana_text = gr.Markdown("")  # aquí irá la semana
 
     gr.Markdown("Selecciona cliente y producto y predice compra la próxima semana.")
 
@@ -71,14 +82,12 @@ with gr.Blocks(title="SodAI Drinks 🥤") as demo:
         product  = gr.Dropdown(label="Producto ID", choices=[], allow_custom_value=False)
 
     output = gr.Textbox(label="Resultado")
-    other_buyers_md = gr.Markdown("")  # lista se mostrará aquí
+    extra  = gr.Markdown("")  # debajo de la caja
 
     btn = gr.Button("Predecir")
 
-    btn.click(fn=predict_one,
-              inputs=[customer, product],
-              outputs=[output, other_buyers_md])
+    btn.click(fn=predict_one, inputs=[customer, product], outputs=[output, extra])
 
-    demo.load(fn=load_options, inputs=[], outputs=[customer, product, title_right])
+    demo.load(fn=load_options, inputs=[], outputs=[customer, product, semana_text])
 
 demo.launch(server_name="0.0.0.0", server_port=7860)
