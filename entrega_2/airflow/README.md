@@ -9,7 +9,7 @@ Se definió un flujo utilizando **Apache Airflow**, **MLflow**, y un **Decision 
 
 ---
 
-# Vídeo Ejecución
+## Vídeo Ejecución
 
 https://drive.google.com/file/d/1wOFsBffIQlKMO0K7RB22nPQaDZ545M0M/view?usp=sharing
 
@@ -68,14 +68,6 @@ La función `detect_drift()` compara la media de la variable `items` entre los n
 - Si no existen estadísticas previas para comparar se fuerza reentrenamiento.
 - Si el delta entre medias es mayor a `0.1` ➜ se considera *drift significativo*.
 
-```python
-delta = abs(new_stats - old_stats).max()
-if delta > 0.1:
-    return True
-else:
-    return False
-```
-
 Esto permite mantener el modelo actualizado frente a cambios en el comportamiento de compra.
 
 ---
@@ -90,7 +82,7 @@ El diseño del DAG permite que el modelo se actualice automáticamente si:
 
 ---
 
-## Estructura del Proyecto
+## Estructura (fundamental) del Proyecto
 
 ```
 .

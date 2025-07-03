@@ -12,7 +12,6 @@ from utils import DateFeatureExtractor
 
 app = FastAPI(title="SodAI Drinks 🥤 - Backend")
 
-# Carga
 model        = joblib.load("models/decision_tree_model.joblib")
 clientes_df  = pd.read_parquet("data/clientes.parquet").set_index("customer_id")
 productos_df = pd.read_parquet("data/productos.parquet").set_index("product_id")

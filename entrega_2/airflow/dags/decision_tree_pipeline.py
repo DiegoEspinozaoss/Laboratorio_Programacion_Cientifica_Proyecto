@@ -4,7 +4,8 @@ from airflow.operators.empty import EmptyOperator
 from datetime import datetime, timedelta
 import subprocess
 from pathlib import Path
-from scripts.detect_drift import detect_drift  # ✅ Importa la función real
+from scripts.detect_drift import detect_drift
+from airflow.utils.trigger_rule import TriggerRule
 
 default_args = {
     'owner': 'airflow',
@@ -24,7 +25,7 @@ dag = DAG(
     catchup=False,
 )
 
-# -------------------- TAREAS --------------------
+# DEFS
 
 def check_data():
     data_dir = Path("/opt/airflow/data")
@@ -49,7 +50,10 @@ def decide_retraining(**kwargs):
     else:
         return 'skip_training'
 
-# -------------------- OPERADORES --------------------
+def run_batch_prediction():
+    subprocess.run(["python3", "/opt/airflow/scripts/predict_batch.py"], check=True)
+
+# OPS
 
 check_data_task = PythonOperator(
     task_id='check_data',
@@ -76,11 +80,18 @@ drift_detection_task = PythonOperator(
     dag=dag,
 )
 
+predict_batch_task = PythonOperator(
+    task_id='predict_batch',
+    python_callable=run_batch_prediction,
+    dag=dag,
+    trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS,
+)
+
 skip_training = EmptyOperator(task_id='skip_training', dag=dag)
 end = EmptyOperator(task_id='end', dag=dag)
 
-# -------------------- FLUJO --------------------
+# FLOW
 
 check_data_task >> branch_task
-branch_task >> train_model_task >> drift_detection_task >> end
-branch_task >> skip_training >> end
+branch_task >> train_model_task >> drift_detection_task >> predict_batch_task >> end
+branch_task >> skip_training >> predict_batch_task >> end

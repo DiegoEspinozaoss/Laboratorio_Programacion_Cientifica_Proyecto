@@ -16,7 +16,6 @@ def detect_drift():
     df_new['purchase_date'] = pd.to_datetime(df_new['purchase_date'])
     df_new['semana'] = df_new['purchase_date'].dt.to_period("W").dt.start_time
 
-    # Si no hay estadísticas anteriores, se asume que debe reentrenarse
     if not model_stats_path.exists():
         print("⚠️ No se encontraron estadísticas previas. Se forzará el reentrenamiento.")
         return True
@@ -31,5 +30,5 @@ def detect_drift():
         print("⚠️ Drift detectado. Se requiere reentrenamiento.")
         return True
     else:
-        print("✅ No hay drift relevante. Se omitirá reentrenamiento.")
+        print("No hay drift. Se omitirá reentrenamiento.")
         return False

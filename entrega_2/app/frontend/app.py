@@ -21,7 +21,7 @@ def load_options():
 def predict_one(customer_id, product_id):
     payload = {"customer_id": str(customer_id), "product_id": str(product_id)}
     try:
-        # 1. Predicción individual
+
         r1 = requests.post(f"{BACKEND}/predict_single", json=payload)
         r1.raise_for_status()
         data = r1.json()
@@ -30,7 +30,6 @@ def predict_one(customer_id, product_id):
         pred_msg = "✅ Comprará" if pred == 1 else "❌ No comprará"
         resultado = f"{pred_msg} el producto {product_id}"
 
-        # 2. Otros compradores del producto
         r2 = requests.get(f"{BACKEND}/buyers_for_product/{product_id}")
         r2.raise_for_status()
         buyers = r2.json().get("buyers", [])
@@ -61,7 +60,7 @@ def predict_one(customer_id, product_id):
 
 with gr.Blocks(title="SodAI Drinks 🥤") as demo:
     gr.Markdown("### SodAI Drinks 🥤")
-    semana_text = gr.Markdown("")  # aquí irá la semana
+    semana_text = gr.Markdown("")
 
     gr.Markdown("Selecciona cliente y producto y predice compra la próxima semana.")
 
@@ -70,7 +69,7 @@ with gr.Blocks(title="SodAI Drinks 🥤") as demo:
         product  = gr.Dropdown(label="Producto ID", choices=[], allow_custom_value=False)
 
     output = gr.Textbox(label="Resultado")
-    extra  = gr.Markdown("")  # debajo de la caja
+    extra  = gr.Markdown("")
 
     btn = gr.Button("Predecir")
 
