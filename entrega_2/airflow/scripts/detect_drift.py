@@ -3,7 +3,7 @@ import joblib
 from pathlib import Path
 
 def detect_drift():
-    print("🔍 Verificando drift...")
+    print("Verificando drift...")
 
     data_path = Path("/opt/airflow/data/transacciones.parquet")
     model_stats_path = Path("/opt/airflow/models/train_feature_stats.joblib")
@@ -17,7 +17,7 @@ def detect_drift():
     df_new['semana'] = df_new['purchase_date'].dt.to_period("W").dt.start_time
 
     if not model_stats_path.exists():
-        print("⚠️ No se encontraron estadísticas previas. Se forzará el reentrenamiento.")
+        print("No se encontraron stats previos. Se forzará el reentrenamiento.")
         return True
 
     old_stats = joblib.load(model_stats_path)
@@ -27,7 +27,7 @@ def detect_drift():
     print(f"🔎 Delta detectado: {delta}")
 
     if delta > 0.1:
-        print("⚠️ Drift detectado. Se requiere reentrenamiento.")
+        print("Drift detectado. Se requiere reentrenamiento.")
         return True
     else:
         print("No hay drift. Se omitirá reentrenamiento.")

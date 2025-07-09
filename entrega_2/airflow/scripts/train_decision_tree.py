@@ -23,12 +23,12 @@ data_dir = Path("data")
 batch_files = list(data_dir.glob("batch_t*.parquet"))
 
 for batch_file in sorted(batch_files, key=lambda x: int(re.search(r'batch_t(\d+)\.parquet', x.name).group(1))):
-    print(f"✅ Añadiendo datos del batch: {batch_file.name}")
+    print(f"Añadiendo datos de batch: {batch_file.name}")
     batch = pd.read_parquet(batch_file)
     batch['purchase_date'] = pd.to_datetime(batch['purchase_date'], unit='ms')
     transacciones = pd.concat([transacciones, batch], ignore_index=True)
 
-print("✅ Todos los datos combinados correctamente. Total registros:", len(transacciones))
+print("Todos los datos combinados. Total registros:", len(transacciones))
 
 clientes = pd.read_parquet("data/clientes.parquet")
 productos = pd.read_parquet("data/productos.parquet")
@@ -80,21 +80,21 @@ cutoff_valid = min_date + timedelta(days=int(total_days * 0.8))
 df_train = df[df['purchase_date'] <= cutoff_train]
 df_valid = df[(df['purchase_date'] > cutoff_train) & (df['purchase_date'] <= cutoff_valid)]
 
-print("✔️ Tamaño entrenamiento:", len(df_train))
-print("✔️ Tamaño validación:", len(df_valid))
+print("Tamaño train:", len(df_train))
+print("Tamaño val:", len(df_valid))
 
-MAX_TRAIN_RATIO = 1
-MAX_VALID_RATIO = 1
+MAX_TRAIN_RATIO = 0.8
+MAX_VALID_RATIO = 0.6
 
 max_train_rows = int(len(df_train) * MAX_TRAIN_RATIO)
 max_valid_rows = int(len(df_valid) * MAX_VALID_RATIO)
 
 if len(df_train) > max_train_rows:
-    print(f"⚠️ Limite aplicado: entrenamiento reducido al {MAX_TRAIN_RATIO*100:.1f}% ({max_train_rows:,} registros)")
+    print(f"Entrenamiento reducido al {MAX_TRAIN_RATIO*100:.1f}% ({max_train_rows:,} registros)")
     df_train = df_train.sample(n=max_train_rows, random_state=42)
 
 if len(df_valid) > max_valid_rows:
-    print(f"⚠️ Limite aplicado: validación reducida al {MAX_VALID_RATIO*100:.1f}% ({max_valid_rows:,} registros)")
+    print(f"Validación reducida al {MAX_VALID_RATIO*100:.1f}% ({max_valid_rows:,} registros)")
     df_valid = df_valid.sample(n=max_valid_rows, random_state=42)
 
 categorical_cols = df.select_dtypes(include=['object', 'category']).columns.tolist()
@@ -177,7 +177,19 @@ else:
 
     output_dir = Path("/opt/airflow/data/pares_generados")
     output_dir.mkdir(exist_ok=True)
-    output_path = output_dir / f"prediccion_semana_{semana_prediccion.strftime('%Y-%m-%d')}.csv"
+
+    if batch_files:
+        def extract_batch_number(filename):
+            match = re.search(r'batch_t(\d+)\.parquet', filename.name)
+            return int(match.group(1)) if match else -1
+
+        batch_files_sorted = sorted(batch_files, key=extract_batch_number, reverse=True)
+        max_batch_number = extract_batch_number(batch_files_sorted[0])
+    else:
+        max_batch_number = 0  # No hay batches
+
+    nombre_archivo = f"pares_pred_batch_t{max_batch_number}.csv"
+    output_path = output_dir / nombre_archivo
 
     pares_predichos.to_csv(output_path, index=False, header=False)
     print(f"CSV generado para entregar: {output_path}")
